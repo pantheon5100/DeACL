@@ -26,10 +26,13 @@ Please refer [solo-learn](https://github.com/vturrisi/solo-learn) to install the
 # ⚡ Training
 
 ## 1. prepare the pretrained self-supervised model
-You can download pretrained checkpoint from [solo-learn](https://github.com/vturrisi/solo-learn) or train by yourself.
+You can download pretrained checkpoint from [solo-learn](https://github.com/vturrisi/solo-learn#cifar-10) or train by yourself. 
+
+SimCLR model pretrained by solo-learn [link](https://drive.google.com/drive/folders/1mcvWr8P2WNJZ7TVpdLHA_Q91q4VK3y8O?usp=sharing).
 
 ## 2. Train DeACL with ResNet18 on CIFAR10 dataset
-Using the file `bash_files/pretrain/DeACL/deacl.sh`.
+
+Using the file `bash_files\DeACL_cifar10_resnet18.sh`. You need to specific the `--project xxx`, `--entity xxx`, and add `--wandb` to enable wandb logging.
 
 ## 3. Test the robustness of PGD and AutoAttack with full precision 
 
