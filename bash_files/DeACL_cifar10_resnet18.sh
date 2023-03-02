@@ -1,9 +1,9 @@
 python3 main_pretrain_AdvTraining.py \
     --dataset cifar10 \
     --backbone resnet18 \
-    --data_dir /dev/shm \
+    --data_dir ./data \
     --max_epochs 100 \
-    --gpus 1 \
+    --gpus 7 \
     --accelerator gpu \
     --precision 16 \
     --optimizer sgd \

@@ -908,7 +908,7 @@ class BaseDistillationATMethod(BaseMethod):
 
 
         # Teacher model pretrained weight loading
-        teacher_root_dir = "/workspace/ssd2_4tb/ssl/Projects/adversarial_ssl/distillation_ssl/solo-learn/TeacherCKPT/"
+        teacher_root_dir = "./TeacherCKPT/"
         self.teacher_ckpt_dir = teacher_root_dir + _SUPPORT_KD_TEACHER[distillation_teacher]
         teacher_ckpt = torch.load(self.teacher_ckpt_dir)["state_dict"]
 

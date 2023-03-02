@@ -17,6 +17,7 @@ from torchvision import datasets, transforms
 from solo.models.resnet_cifar import ResNet18, ResNet50
 from solo.models.wide_resnet import wide_resnet28w10
 from solo.models.model_with_linear import ModelwithLinear, LinearClassifier
+from solo.models.resnet_add_normalize import resnet18_NormalizeInput
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -110,8 +111,9 @@ def parse_option():
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'stl10'], help='dataset')
     # other setting
-    parser.add_argument('--ckpt', type=str, default='trained_models/mocov2_kd_at/tef7o40l/weight_decay_ablation-5e-4-simclr-wd5em4-lr0.5_ce2gt_ce2ae-trades_k_2-tef7o40l-ep=99.ckpt',
+    parser.add_argument('--ckpt', type=str, default='trained_models/res18_simclr-cifar10-offline-x4h7cp45-ep=99.ckpt',
                         help='path to pre-trained model')
+
     parser.add_argument('--name', type=str, default='deacl_slf',
                         help='name of the exp')
 
@@ -171,7 +173,12 @@ def set_model(opt):
         classifier = LinearClassifier(name=opt.name, feat_dim=model.inplanes, num_classes=opt.n_cls)
     else:
 
-        model = ResNet18()
+        model = resnet18_NormalizeInput()
+        model.fc = nn.Identity()
+        model.conv1 = nn.Conv2d(
+            3, 64, kernel_size=3, stride=1, padding=2, bias=False
+        )
+        model.maxpool = nn.Identity()
         classifier = LinearClassifier(
             name=opt.name, feat_dim=512, num_classes=opt.n_cls)
 
@@ -184,34 +191,9 @@ def set_model(opt):
         state_dict = state_dict['state_dict']
 
     state_dict_load = {}
-    for key, weights in state_dict.items():
-        ori_key = key
-        if "backbone." in key and "momentum" not in key:
-            key = key.replace("backbone.", "")
-
-            if 'downsample' in key:
-                key = key.replace('downsample', 'shortcut')
-            if 'shortcut.bn.bn_list.0' in key:
-                key = key.replace('shortcut.bn.bn_list.0', 'shortcut.1')
-            elif 'shortcut.bn.bn_list.1' in key:
-                key = key.replace('shortcut.bn.bn_list.1', 'shortcut.1')
-            elif '.bn_list.0' in key:
-                key = key.replace('.bn_list.0', '')
-
-            elif '.bn_list.1' in key:
-                key = key.replace('.bn_list.1', '')
-
-            elif 'shortcut.conv' in key:
-                key = key.replace('shortcut.conv', 'shortcut.0')
-            elif 'classifier.' in key:
-                key = key.replace('classifier', 'linear')
-            # key = "module." + key
-            state_dict_load[key] = state_dict[ori_key]
-
-    if "normalize.mean" not in state_dict_load.keys():
-
-        state_dict_load["normalize.mean"] = torch.tensor([0, 0, 0])
-        state_dict_load["normalize.std"] = torch.tensor([1, 1, 1])
+    for k,v in state_dict.items():
+        if k.startswith('backbone.'):
+            state_dict_load[k.replace('backbone.', '')] = v.clone()
 
     model = model.cuda()
     classifier = classifier.cuda()
@@ -364,8 +346,6 @@ def main(slf_config=None, ):
                           lr=opt.learning_rate,
                           momentum=opt.momentum,
                           weight_decay=opt.weight_decay)
-    # logname = ('logger/' + '{}_linearnormal'.format(opt.name))
-    # logger = tb_logger.Logger(logdir=logname, flush_secs=2)
 
     # training routine
     val_acc = 0
@@ -376,9 +356,6 @@ def main(slf_config=None, ):
         time1 = time.time()
         loss, acc = train(train_loader, model, classifier, net, criterion,
                           optimizer, epoch, opt)
-        # logger.log_value('train_loss', loss, epoch)
-        # logger.log_value('train_acc', acc, epoch)
-        # logger.log_value('learning_rate', optimizer.param_groups[0]['lr'], epoch)
         time2 = time.time()
         print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
             epoch, time2 - time1, acc))
@@ -388,13 +365,6 @@ def main(slf_config=None, ):
             loss, val_acc, val_acc_clean = validate(
                 val_loader, model, classifier, net, criterion, opt)
             
-        # logger.log_value('val_loss', loss, epoch)
-        # logger.log_value('val_acc', val_acc, epoch)
-        # logger.log_value('val_acc_clean', val_acc_clean, epoch)
-
-        # logger.log_value('best_val_acc', log_ra, epoch)
-        # logger.log_value('best_val_acc_clean', log_ta, epoch)
-
         if val_acc > best_acc:
             best_acc = val_acc
             best_acc_clean = val_acc_clean
@@ -410,11 +380,12 @@ def main(slf_config=None, ):
     print('best accuracy: {:.2f}'.format(best_acc))
     print('best accuracy clean: {:.2f}'.format(best_acc_clean))
 
-    log_path = os.path.join(os.path.abspath(opt.ckpt), "eval_aa_eval_best.log")
+    log_path = os.path.join(os.path.dirname(opt.ckpt), f"{os.path.basename(opt.ckpt)}_eval_aa_eval_best.log")
     
-    model = ModelwithLinear(model, model.inplanes)
-    model.classifier.weight = classifier.classifier.weight
-    model.classifier.bias = classifier.classifier.bias
+    model.fc = classifier
+    # model = ModelwithLinear(model, model.inplanes)
+    # model.classifier.weight = classifier.classifier.weight
+    # model.classifier.bias = classifier.classifier.bias
     
     adversary = AutoAttack(model, norm="Linf", eps=8.0 /
                            255., log_path=log_path, version="standard", seed=0)
@@ -426,7 +397,7 @@ def main(slf_config=None, ):
     with torch.no_grad():
         adversary.run_standard_evaluation(x_test, y_test, bs=256)
 
-    with open(os.path.join(os.path.abspath(opt.ckpt), "final_results.txt"), "a") as f:
+    with open(os.path.join(os.path.dirname(opt.ckpt), "final_results.txt"), "a") as f:
 
         f.write(f"Final robust acc: {val_acc}.\n")
         f.write(f"Final clean acc: {val_acc_clean}.\n")

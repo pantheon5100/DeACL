@@ -1,7 +1,7 @@
 python3 main_pretrain_AdvTraining.py \
     --dataset cifar10 \
     --backbone resnet50 \
-    --data_dir /dev/shm \
+    --data_dir ./data \
     --max_epochs 100 \
     --gpus 4 \
     --accelerator gpu \
