@@ -1,0 +1,1 @@
+Put the teacher model ckpt here.

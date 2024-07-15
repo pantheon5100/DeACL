@@ -10,5 +10,5 @@ data/
 
 checkpoint/
 
-TeacherCKPT
+/TeacherCKPT/*.ckpt
 

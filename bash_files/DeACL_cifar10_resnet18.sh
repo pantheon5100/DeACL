@@ -1,11 +1,13 @@
+export WANDB_API_KEY="" 
+
 python3 main_pretrain_AdvTraining.py \
     --dataset cifar10 \
     --backbone resnet18 \
     --data_dir ./data \
     --max_epochs 100 \
-    --gpus 7 \
+    --gpus 1 \
     --accelerator gpu \
-    --precision 16 \
+    --precision 32 \
     --optimizer sgd \
     --scheduler warmup_cosine \
     --lr 0.5 \
@@ -20,7 +22,7 @@ python3 main_pretrain_AdvTraining.py \
     --gaussian_prob 0.0 0.0 \
     --crop_size 32 \
     --num_crops_per_aug 1 1 \
-    --name "res18_simclr-cifar10" \
+    --name "res18_simclr-cifar10-fp32" \
     --save_checkpoint \
     --method mocov2_kd_at \
     --limit_val_batches 0.2 \

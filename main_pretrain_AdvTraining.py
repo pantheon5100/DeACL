@@ -57,10 +57,6 @@ from solo.utils.pretrain_dataloader_AdvTraining import (
     prepare_transform)
 
 
-
-
-
-
 def main():
     seed_everything(5)
 
@@ -146,7 +142,6 @@ def main():
         wandb_logger = WandbLogger(
             name=args.name,
             project=args.project,
-            entity=args.entity,
             offline=args.offline,
             settings=wandb.Settings(start_method="fork")
         )
@@ -212,13 +207,10 @@ def main():
     shutil.copyfile(f"adv_slf.py", os.path.join(experimentdir, 'adv_slf.py'))
 
 
-
-
     if args.dali:
         trainer.fit(model, val_dataloaders=val_loader, ckpt_path=ckpt_path)
     else:
         trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
-
 
 
 
